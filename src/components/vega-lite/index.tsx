@@ -7,6 +7,8 @@ import {InlineData, isNamedData} from 'vega-lite/build/src/data';
 import * as vegaTooltip from 'vega-tooltip';
 import {SPINNER_COLOR} from '../../constants';
 import {Logger} from '../util/util.logger';
+import {doVegaQuery} from '../../api/api';
+import {VoyagerConfig} from '../../models/config';
 
 export interface VegaLiteProps {
   spec: TopLevelSpec;
@@ -16,6 +18,8 @@ export interface VegaLiteProps {
   logger: Logger;
 
   data: InlineData;
+
+  config: VoyagerConfig;
 
   viewRunAfter?: (view: vega.View) => any;
 }
@@ -136,6 +140,14 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     //     "y": {"field": "b", "type": "quantitative"}
     //   }
     // };
+    doVegaQuery({"hey" : "there"}, this.props.config).then(
+      response => {
+        console.log(response);
+      }
+    );
+    
+
+
     const {logger} = this.props;
     const vlSpec = this.props.spec;
     try {

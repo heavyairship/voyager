@@ -21,6 +21,10 @@ import {Logger} from '../util/util.logger';
 import {VegaLite} from '../vega-lite/index';
 import {BookmarkButton} from './bookmarkbutton';
 import * as styles from './plot.scss';
+import { VOYAGER_CONFIG } from '../../constants';
+import { VoyagerConfig } from '../../models/config';
+
+const config: VoyagerConfig = VOYAGER_CONFIG;
 
 export interface PlotProps extends ActionHandler<
   ShelfAction | BookmarkAction | ShelfPreviewAction | ResultAction | LogAction
@@ -137,7 +141,7 @@ export class PlotBase extends React.PureComponent<PlotProps, PlotState> {
           onMouseEnter={this.onMouseEnter}
           onMouseLeave={this.onMouseLeave}
         >
-          <VegaLite spec={spec} logger={this.plotLogger} data={data}/>
+          <VegaLite spec={spec} logger={this.plotLogger} data={data} config={config}/>
         </div>
         {notesDiv}
       </div>

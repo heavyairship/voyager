@@ -85,3 +85,32 @@ export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig
   }
 
 }
+
+/**
+ * Submit vega query
+ */
+export function doVegaQuery(data: any, config?: VoyagerConfig):
+  Promise<any> {
+
+  if (config && config.serverUrl) {
+    const endpoint = "query";
+
+    return fetch(`${config.serverUrl}/${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        data
+      })
+    }).then(
+      response => {
+        return response.json();
+      }
+    );
+  } else {
+    console.log("WARNING: /query route only available in server mode");
+  }
+
+}
