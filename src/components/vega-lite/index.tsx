@@ -3,6 +3,8 @@ import {ClipLoader} from 'react-spinners';
 import * as vega from 'vega';
 import * as vl from 'vega-lite';
 import {TopLevelSpec} from 'vega-lite';
+import {Encoding} from 'vega-lite/build/src/encoding';
+import {PositionFieldDef} from 'vega-lite/build/src/fielddef';
 import {InlineData, isNamedData} from 'vega-lite/build/src/data';
 import * as vegaTooltip from 'vega-tooltip';
 import {SPINNER_COLOR} from '../../constants';
@@ -140,16 +142,21 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     //     "y": {"field": "b", "type": "quantitative"}
     //   }
     // };
-    doVegaQuery({"hey" : "there"}, this.props.config).then(
+
+    const {logger} = this.props;
+    const deagg = this.deaggAndGetSql(this.props.spec);
+    const vlSpec = deagg.newSpec; 
+    const query = deagg.query;
+
+    // FixMe: don't forget to clear out the data attribute!
+
+    // FixMe: this should probably be refactored into an action (see src/actions).
+    doVegaQuery({"query" : query}, this.props.config).then(
       response => {
         console.log(response);
       }
     );
-    
 
-
-    const {logger} = this.props;
-    const vlSpec = this.props.spec;
     try {
       const spec = vl.compile(vlSpec, logger).spec;
       const runtime = vega.parse(spec, vlSpec.config);
@@ -165,6 +172,48 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     }
   }
 
+  private deaggAndGetSql(spec: TopLevelSpec): any {
+    // Takes in a vega-list spec and returns a deaggregated version, along
+    // with an SQL query corresponding to the original spec.
+    // FixMe: use TS typing rather than strings to access attrs.
+
+    let query: String = 'SELECT ';
+    let newSpec: TopLevelSpec = JSON.parse(JSON.stringify(spec))
+    let encoding: Encoding<String> = spec['encoding'];
+    
+    if (encoding && encoding.hasOwnProperty('x')) {
+      if (encoding['x'].hasOwnProperty('aggregate')) {
+        query += encoding['x']['aggregate'] + '(' + encoding['x']['field'] + ')';
+        newSpec['encoding']['x']['aggregate'] = '';
+      } else {
+        query += encoding['x']['field'];
+      }
+      query += ' AS x_field';
+      newSpec['encoding']['x']['field'] = 'x_field';
+      
+      if (encoding.hasOwnProperty('y')) {
+        query += ', ';
+      }
+    }
+  
+    if (encoding && encoding.hasOwnProperty('y')) {
+      if (encoding['y'].hasOwnProperty('aggregate')) {
+        query += encoding['y']['aggregate'] + '(' + encoding['y']['field'] + ')';
+        newSpec['encoding']['y']['aggregate'] = '';
+      } else {
+        query += encoding['y']['field'];
+      }
+      query += ' AS y_field';
+      newSpec['encoding']['y']['field'] = 'y_field';
+    }
+  
+    query += ' FROM table1';
+    //query += ' FROM ' + spec.userMeta;
+    // FixMe: use real name
+    // FixMe: add filters
+    query += ';';
+    return {newSpec: newSpec, query : query}
+  }
 
   private bindData() {
     const {data, spec} = this.props;
