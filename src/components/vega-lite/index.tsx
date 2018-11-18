@@ -148,15 +148,6 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     const vlSpec = deagg.newSpec; 
     const query = deagg.query;
 
-    // FixMe: don't forget to clear out the data attribute!
-
-    // FixMe: this should probably be refactored into an action (see src/actions).
-    doVegaQuery({"query" : query}, this.props.config).then(
-      response => {
-        console.log(response);
-      }
-    );
-
     try {
       const spec = vl.compile(vlSpec, logger).spec;
       const runtime = vega.parse(spec, vlSpec.config);
@@ -167,6 +158,15 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         .hover();
       vegaTooltip.vega(this.view);
       this.bindData();
+
+      // FixMe: this should probably be refactored into an action (see src/actions).
+      doVegaQuery({'query' : query}, this.props.config).then(
+        response => {
+          this.view.change(this.props.spec['data']['name'], vega.changeset()
+            .insert(response.rows)
+          ).run();
+        }
+      );
     } catch (err) {
       logger.error(err);
     }
@@ -177,16 +177,23 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     // with an SQL query corresponding to the original spec.
     // FixMe: use TS typing rather than strings to access attrs.
 
-    let query: String = 'SELECT ';
+    let query: string = 'SELECT ';
+    let groupby: string = '';
     let newSpec: TopLevelSpec = JSON.parse(JSON.stringify(spec))
-    let encoding: Encoding<String> = spec['encoding'];
+    let encoding: Encoding<string> = spec['encoding'];
     
     if (encoding && encoding.hasOwnProperty('x')) {
       if (encoding['x'].hasOwnProperty('aggregate')) {
         query += encoding['x']['aggregate'] + '(' + encoding['x']['field'] + ')';
         newSpec['encoding']['x']['aggregate'] = '';
       } else {
-        query += encoding['x']['field'];
+        const field = encoding['x']['field'];
+        query += field;
+        if (groupby === '') {
+          groupby = ' GROUP BY ' + field; 
+        } else {
+          groupby += ', ' + field;
+        }
       }
       query += ' AS x_field';
       newSpec['encoding']['x']['field'] = 'x_field';
@@ -201,13 +208,20 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         query += encoding['y']['aggregate'] + '(' + encoding['y']['field'] + ')';
         newSpec['encoding']['y']['aggregate'] = '';
       } else {
-        query += encoding['y']['field'];
+        const field = encoding['y']['field'];
+        query += field;
+        if (groupby === '') {
+          groupby = ' GROUP BY ' + field; 
+        } else {
+          groupby += ', ' + field;
+        }
       }
       query += ' AS y_field';
       newSpec['encoding']['y']['field'] = 'y_field';
     }
   
     query += ' FROM table1';
+    query += groupby;
     //query += ' FROM ' + spec.userMeta;
     // FixMe: use real name
     // FixMe: add filters
