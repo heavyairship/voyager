@@ -220,7 +220,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
       newSpec['encoding']['y']['field'] = 'y_field';
     }
   
-    query += ' FROM table1';
+    query += ' FROM cars';
     query += groupby;
     //query += ' FROM ' + spec.userMeta;
     // FixMe: use real name

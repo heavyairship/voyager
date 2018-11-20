@@ -53,7 +53,7 @@ export function fetchCompassQLRecommend(query: Query, schema: Schema, data: Inli
 /**
  * Submit schema building request from CompassQL
  */
-export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig):
+export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig, name?: string):
   Promise<Schema> {
 
   if (config && config.serverUrl) {
@@ -66,7 +66,8 @@ export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig
       },
       credentials: "same-origin",
       body: JSON.stringify({
-        data
+        data: data,
+        name: name
       })
     }).then(
       response => {
