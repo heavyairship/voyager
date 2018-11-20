@@ -36,6 +36,14 @@ function loghelper(label: string, contents: any): void {
   console.log(label + ": ", JSON.stringify(contents));
 }
 
+function sanitizeAggregate(agg: string): string {
+  agg = agg.toLowerCase();
+  if (agg === "mean") {
+    agg = "avg";
+  }
+  return agg;
+}
+
 export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> {
   private view: vega.View;
   private size: {width: number, height: number};
@@ -192,8 +200,9 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     if (encoding && encoding.hasOwnProperty('x')) {
       if (encoding['x'].hasOwnProperty('aggregate')) {
         // Deaggregate x encoding.
-        query += encoding['x']['aggregate'] + '(' + encoding['x']['field'] + ')';
-        newSpec['encoding']['x']['field'] = encoding['x']['aggregate'].toLowerCase();
+        const agg = sanitizeAggregate(encoding['x']['aggregate']);
+        query += agg + '(' + encoding['x']['field'] + ')';
+        newSpec['encoding']['x']['field'] = agg;
         newSpec['encoding']['x']['aggregate'] = '';
       } else {
         // Non-aggregate field, so must be in group by clause.
@@ -215,8 +224,9 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     if (encoding && encoding.hasOwnProperty('y')) {
       if (encoding['y'].hasOwnProperty('aggregate')) {
         // Deaggregate y encoding.
-        query += encoding['y']['aggregate'] + '(' + encoding['y']['field'] + ')';
-        newSpec['encoding']['y']['field'] = encoding['y']['aggregate'].toLowerCase();
+        const agg = sanitizeAggregate(encoding['y']['aggregate']);
+        query += agg + '(' + encoding['y']['field'] + ')';
+        newSpec['encoding']['y']['field'] = agg;
         newSpec['encoding']['y']['aggregate'] = '';
       } else {
         // Non-aggregate field, so must be in group by clause.
