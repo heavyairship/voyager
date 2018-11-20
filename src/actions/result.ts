@@ -81,6 +81,7 @@ export function resultRequest(resultType: ResultType, query: Query, filterKey?: 
     const schema = selectSchema(getState());
     const data = selectData(getState());
     const config = selectConfig(getState());
+    const name = getState().undoable.present.dataset.name;
 
     dispatch({
       type: RESULT_REQUEST,
@@ -88,7 +89,7 @@ export function resultRequest(resultType: ResultType, query: Query, filterKey?: 
     });
 
     // TODO: pass in config
-    return fetchCompassQLRecommend(query, schema, data, config).then(
+    return fetchCompassQLRecommend(query, schema, data, config, name).then(
       (preFilteredPlots: ResultPlotWithKey[]) => {
         const plots: ResultPlot[] = (
           filterKey ?

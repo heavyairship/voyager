@@ -15,7 +15,8 @@ export {Query, Schema, Data};
 /**
  * Submit recommendation query request from CompassQL
  */
-export function fetchCompassQLRecommend(query: Query, schema: Schema, data: InlineData, config?: VoyagerConfig):
+export function fetchCompassQLRecommend(query: Query, schema: Schema, data: InlineData, 
+    config?: VoyagerConfig, name?: string):
   Promise<ResultPlotWithKey[]> {
 
   if (config && config.serverUrl) {
@@ -45,7 +46,7 @@ export function fetchCompassQLRecommend(query: Query, schema: Schema, data: Inli
       // TODO:
       // - replace this with different cached data source's unique names
       // once we have multiple cached data source from Leilani's optimizer engine
-      resolve(fromSpecQueryModelGroup(modelGroup, {name: 'source'}));
+      resolve(fromSpecQueryModelGroup(modelGroup, {name: name}));
     });
   }
 }
