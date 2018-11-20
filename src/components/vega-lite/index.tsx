@@ -32,6 +32,10 @@ export interface VegaLiteState {
 
 const CHART_REF = 'chart';
 
+function loghelper(label: string, contents: any): void {
+  console.log(label + ": ", JSON.stringify(contents));
+}
+
 export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> {
   private view: vega.View;
   private size: {width: number, height: number};
@@ -173,8 +177,11 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
   }
 
   private deaggAndGetSql(spec: TopLevelSpec): any {
-    // Takes in a vega-list spec and returns a deaggregated version, along
+    // Takes in a vega-lite spec and returns a deaggregated version, along
     // with an SQL query corresponding to the original spec.
+    // The SQL query is what is executed against postgres, and the deaggregated vega-lite
+    // spec defines an identity function (data-wise) on the results of that SQL query.
+    //
     // FixMe: use TS typing rather than strings to access attrs.
 
     let query: string = 'SELECT ';
@@ -184,9 +191,12 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     
     if (encoding && encoding.hasOwnProperty('x')) {
       if (encoding['x'].hasOwnProperty('aggregate')) {
+        // Deaggregate x encoding.
         query += encoding['x']['aggregate'] + '(' + encoding['x']['field'] + ')';
+        newSpec['encoding']['x']['field'] = encoding['x']['aggregate'].toLowerCase();
         newSpec['encoding']['x']['aggregate'] = '';
       } else {
+        // Non-aggregate field, so must be in group by clause.
         const field = encoding['x']['field'];
         query += field;
         if (groupby === '') {
@@ -194,9 +204,8 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         } else {
           groupby += ', ' + field;
         }
+        newSpec['encoding']['x']['field'] = field.toLowerCase();
       }
-      query += ' AS x_field';
-      newSpec['encoding']['x']['field'] = 'x_field';
       
       if (encoding.hasOwnProperty('y')) {
         query += ', ';
@@ -205,9 +214,12 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
   
     if (encoding && encoding.hasOwnProperty('y')) {
       if (encoding['y'].hasOwnProperty('aggregate')) {
+        // Deaggregate y encoding.
         query += encoding['y']['aggregate'] + '(' + encoding['y']['field'] + ')';
+        newSpec['encoding']['y']['field'] = encoding['y']['aggregate'].toLowerCase();
         newSpec['encoding']['y']['aggregate'] = '';
       } else {
+        // Non-aggregate field, so must be in group by clause.
         const field = encoding['y']['field'];
         query += field;
         if (groupby === '') {
@@ -215,9 +227,8 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         } else {
           groupby += ', ' + field;
         }
+        newSpec['encoding']['y']['field'] = field.toLowerCase();
       }
-      query += ' AS y_field';
-      newSpec['encoding']['y']['field'] = 'y_field';
     }
   
     query += (' FROM ' + spec.data['name']);
