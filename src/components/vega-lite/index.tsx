@@ -159,6 +159,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     const deagg = this.deaggAndGetSql(this.props.spec);
     const vlSpec = deagg.newSpec; 
     const query = deagg.query;
+    this.props.data.values = [];
 
     try {
       const spec = vl.compile(vlSpec, logger).spec;
@@ -169,14 +170,13 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         .renderer(this.props.renderer || 'canvas')
         .hover();
       vegaTooltip.vega(this.view);
-      this.bindData();
 
       // FixMe: this should probably be refactored into an action (see src/actions).
-      doVegaQuery({'query' : query}, this.props.config).then(
+      doVegaQuery({query : query}, this.props.config).then(
         response => {
-          this.view.change(this.props.spec['data']['name'], vega.changeset()
-            .insert(response.rows)
-          ).run();
+          this.props.data.values = response.rows;
+          this.bindData();
+          this.runView();
         }
       );
     } catch (err) {
