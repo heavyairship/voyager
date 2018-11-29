@@ -51,35 +51,80 @@ export function fetchCompassQLRecommend(query: Query, schema: Schema, data: Inli
   }
 }
 
+function doCreateSqlHelper(data: Object[], rowsPerChunk: number, startOffset: number, 
+  config?: VoyagerConfig, name?: string): Promise<Response> {
+  // Recursively send chunks of data to create the PostgreSQL table.
+   
+  const endOffset = Math.min(startOffset + rowsPerChunk, data.length);
+  console.log("doCreateSqlHelper: sending rows [" + startOffset + ", " + endOffset + ")");
+  const chunk = data.slice(startOffset, endOffset);
+  const endpoint = "createSql";
+  const promise = fetch(`${config.serverUrl}/${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({
+      data: chunk,
+      name: name
+    })
+  });
+
+  if(endOffset < data.length) {
+    // Recursive case -- there's more data to send.
+    return promise.then(
+      () => {
+        return doCreateSqlHelper(data, rowsPerChunk, endOffset, config, name);
+      }
+    );
+  } else {
+    // Base case -- no more data to send.
+    return promise;
+  }
+}
+
+function doCreateSql(data: Object[], config?: VoyagerConfig, name?: string): Promise<Response> {
+  const chunkBytes: number = 1024*1024; // 1MB
+  const rowBytesSample: number = data.length > 0 ? JSON.stringify(data[0]).length : 1;
+  const rowsPerChunk: number = Math.floor(chunkBytes/rowBytesSample);
+  console.log("doCreateSql: approx row size: ", rowBytesSample);
+  return doCreateSqlHelper(data, rowsPerChunk, 0, config, name);
+}
+
 /**
- * Submit schema building request from CompassQL
+ * Submit data in chunks to create PostgreSQL table and then submit schema building 
+ * request from CompassQL
  */
 export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig, name?: string):
   Promise<Schema> {
 
-  if (config && config.serverUrl) {
-    const endpoint = "build";
-
-    return fetch(`${config.serverUrl}/${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      credentials: "same-origin",
-      body: JSON.stringify({
-        data: data,
-        name: name
-      })
-    }).then(
-      response => {
-        return response.json();
-      }
-    ).then(
-      fields => {
-        return new Schema({fields: fields.fields});
-      }
-    );
-
+  if(config && config.serverUrl) {
+    return doCreateSql(data,config, name
+      ).then(
+        // Here we actually fetch the schema
+        () => {
+          const endpoint = "build";
+          return fetch(`${config.serverUrl}/${endpoint}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              name: name
+            })
+          });
+        }
+      ).then(
+        response => {
+          return response.json();
+        }
+      ).then(
+        fields => {
+          return new Schema({fields: fields.fields});
+        }
+      );
   } else {
     return new Promise(resolve => {
       resolve(buildSchema(data));
