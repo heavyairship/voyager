@@ -80,6 +80,7 @@ function buildSchemaAndDispatchDataReceive(
   return fetchCompassQLBuildSchema(data.values, config, name)
   .catch(errorCatch)
   .then(schema => {
+    data.values = []; // Clear out values, since they are stored in PostgreSQL.
     dispatch({
       type: DATASET_RECEIVE,
       payload: {name, schema, data}
