@@ -6,7 +6,7 @@ import {ThunkAction} from 'redux-thunk';
 import {ActionCreators} from 'redux-undo';
 import {Data, InlineData, isInlineData, isUrlData} from 'vega-lite/build/src/data';
 import {isArray} from 'vega-util';
-import {fetchCompassQLBuildSchema} from '../api/api';
+import {fetchCompassQLBuildSchema, doCheckExistsSql} from '../api/api';
 import {VoyagerConfig} from '../models/config';
 import {State} from '../models/index';
 import {selectConfig} from '../selectors';
@@ -55,13 +55,23 @@ export function datasetLoad(name: string, data: Data): DatasetLoad {
       payload: {name}
     });
 
-    // Get the new dataset
+    // Get the new dataset only if it hasn't already been loaded into PostgreSQL.
     if (isUrlData(data)) {
-      return fetch(data.url)
+      return doCheckExistsSql(config, name) 
         .then(response => response.json())
-        .catch(errorCatch)
-        .then((values: any) => {
-          return buildSchemaAndDispatchDataReceive({values}, config, dispatch, name);
+        .then(response => {
+          if(!response.exists) {
+            // Table doesn't exist yet so load data values from file
+            return fetch(data.url)
+              .then(response => response.json())
+              .catch(errorCatch)
+              .then((values: any) => {
+                return buildSchemaAndDispatchDataReceive({values}, config, dispatch, name);
+              });
+          } else {
+            // Table exists, so no values to load (they are already in PostgreSQL)
+            return buildSchemaAndDispatchDataReceive({values: []}, config, dispatch, name);
+          }
         });
     } else if (isInlineData(data)) {
       return buildSchemaAndDispatchDataReceive(data, config, dispatch, name);
@@ -71,21 +81,20 @@ export function datasetLoad(name: string, data: Data): DatasetLoad {
   };
 };
 
-function buildSchemaAndDispatchDataReceive(
-  data: InlineData, config: VoyagerConfig, dispatch: Dispatch<Action>, name: string
-) {
+function buildSchemaAndDispatchDataReceive(data: InlineData, config: VoyagerConfig, 
+  dispatch: Dispatch<Action>, name: string, exists? : boolean) {
   if (!isArray(data.values)) {
     throw new Error('Voyager only supports array values');
   }
   return fetchCompassQLBuildSchema(data.values, config, name)
   .catch(errorCatch)
   .then(schema => {
-    data.values = []; // Clear out values, since they are stored in PostgreSQL.
+    // Clear out values, since they are definitely in PostgreSQL at this point.
+    data.values = [];
     dispatch({
       type: DATASET_RECEIVE,
       payload: {name, schema, data}
     });
-
     dispatch(ActionCreators.clearHistory());
   });
 }

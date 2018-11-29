@@ -52,7 +52,7 @@ export function fetchCompassQLRecommend(query: Query, schema: Schema, data: Inli
 }
 
 function doInsertSqlHelper(data: Object[], rowsPerChunk: number, startOffset: number, 
-  config?: VoyagerConfig, name?: string): Promise<Response> {
+  config: VoyagerConfig, name: string): Promise<Response> {
   // Recursively send chunks of data to create the PostgreSQL table.
    
   const endOffset = Math.min(startOffset + rowsPerChunk, data.length);
@@ -88,7 +88,7 @@ function doInsertSqlHelper(data: Object[], rowsPerChunk: number, startOffset: nu
   }
 }
 
-function doInsertSql(data: Object[], config?: VoyagerConfig, name?: string): Promise<Response> {
+function doInsertSql(data: Object[], config: VoyagerConfig, name: string): Promise<Response> {
   const chunkBytes: number = 10*1024*1024; // 10MB
   const rowBytesSample: number = data.length > 0 ? JSON.stringify(data[0]).length : 1;
   const rowsPerChunk: number = Math.floor(chunkBytes/rowBytesSample);
@@ -96,11 +96,10 @@ function doInsertSql(data: Object[], config?: VoyagerConfig, name?: string): Pro
   return doInsertSqlHelper(data, rowsPerChunk, 0, config, name);
 }
 
-function doCreateSql(sample: any, config?: VoyagerConfig, name?: string): Promise<Response> {
-  if(sample === undefined) {
-    console.log("Error: cannot create sql table without sample for inferring SQL schema");
-    return Promise.resolve();
-  }
+/**
+ * Create PostgreSQL table.
+ */
+export function doCreateSql(sample: any, config: VoyagerConfig, name: string): Promise<Response> {
   const endpoint = "createSql";
   return fetch(`${config.serverUrl}/${endpoint}`, {
     method: "POST",
@@ -116,58 +115,64 @@ function doCreateSql(sample: any, config?: VoyagerConfig, name?: string): Promis
 }
 
 /**
+ * Check if PostgreSQL table exists.
+ */ 
+export function doCheckExistsSql(config: VoyagerConfig, name: string): Promise<Response> {
+  const endpoint = "checkExistsSql";
+  return fetch(`${config.serverUrl}/${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({
+      name: name
+    })
+  });
+}
+
+/**
  * Submit data in chunks to create PostgreSQL table and then submit schema building 
  * request from CompassQL
  */
 export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig, name?: string):
   Promise<Schema> {
-
   if(config && config.serverUrl) {
-    const sample = data.length > 0 ? data[0] : undefined;
-    return doCreateSql(sample, config, name
-    ).then(
-      response => {
-        return response.json();
-      }
-    ).then(
-      response => {
-        if(response.exists) {
-          // Table already existed, so do nothing.
-          return Promise.resolve();
-        }
-        // Table didn't exist already, so populate it with data.
-        return doInsertSql(data, config, name);
-      }
-    ).then(
+    let fetchSchema = function(): Promise<Response> {
       // Here we actually fetch the schema
-      () => {
-        const endpoint = "build";
-        return fetch(`${config.serverUrl}/${endpoint}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            name: name
-          })
-        });
-      }
-    ).then(
-      response => {
-        return response.json();
-      }
-    ).then(
-      fields => {
-        return new Schema({fields: fields.fields});
-      }
-    );
+      const endpoint = "build";
+      return fetch(`${config.serverUrl}/${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          name: name
+        })
+      });
+    }
+    // FixMe: check error statuses.
+    // FixMe: empty data + non-existing table case will cause fetchSchema() 
+    // to fail on the server. 
+    if(data.length === 0) {
+      // Table already exists or data is empty, so don't create/insert into table.
+      return fetchSchema()
+      .then(response => response.json())
+      .then(fields => new Schema({fields: fields.fields}));
+    } else {
+      // Table doesn't exist yet. So create/insert into table.
+      return doCreateSql(data[0], config, name)
+      .then(() => doInsertSql(data, config, name))
+      .then(fetchSchema)
+      .then(response => response.json())
+      .then(fields => new Schema({fields: fields.fields}));
+    }
   } else {
     return new Promise(resolve => {
       resolve(buildSchema(data));
     });
   }
-
 }
 
 /**
@@ -175,10 +180,8 @@ export function fetchCompassQLBuildSchema(data: Object[], config?: VoyagerConfig
  */
 export function doVegaQuery(data: any, config?: VoyagerConfig):
   Promise<any> {
-
   if (config && config.serverUrl) {
     const endpoint = "querySql";
-
     return fetch(`${config.serverUrl}/${endpoint}`, {
       method: "POST",
       headers: {
@@ -196,5 +199,4 @@ export function doVegaQuery(data: any, config?: VoyagerConfig):
   } else {
     console.log("WARNING: /querySql route only available in server mode");
   }
-
 }
