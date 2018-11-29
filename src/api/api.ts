@@ -85,7 +85,7 @@ function doCreateSqlHelper(data: Object[], rowsPerChunk: number, startOffset: nu
 }
 
 function doCreateSql(data: Object[], config?: VoyagerConfig, name?: string): Promise<Response> {
-  const chunkBytes: number = 1024*1024; // 1MB
+  const chunkBytes: number = 10*1024*1024; // 10MB
   const rowBytesSample: number = data.length > 0 ? JSON.stringify(data[0]).length : 1;
   const rowsPerChunk: number = Math.floor(chunkBytes/rowBytesSample);
   console.log("doCreateSql: approx row size: ", rowBytesSample);
