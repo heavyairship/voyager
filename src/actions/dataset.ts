@@ -45,6 +45,7 @@ export type DatasetReceive = ReduxAction<typeof DATASET_RECEIVE, {
 
 export type DatasetLoad = ThunkAction<void , State, undefined>;
 export function datasetLoad(name: string, data: Data): DatasetLoad {
+  console.log('LOAD START TIME: ', (new Date()).getTime()/1000);
   return (dispatch: Dispatch<Action>, getState) => {
 
     const config = selectConfig(getState());

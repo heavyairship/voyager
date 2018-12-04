@@ -44,6 +44,8 @@ function sanitizeAggregate(agg: string): string {
   return agg;
 }
 
+var globalId = 0;
+
 export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> {
   private view: vega.View;
   private size: {width: number, height: number};
@@ -51,11 +53,14 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
   private mountTimeout: number;
   private updateTimeout: number;
 
+  private id: number;
+
   constructor(props: VegaLiteProps) {
     super(props);
     this.state = {
       isLoading: true
     };
+    this.id = globalId++;
   }
 
   public render() {
@@ -155,6 +160,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     //   }
     // };
 
+    console.log(this.id + ' QUERY LATENCY START TME: ', (new Date()).getTime()/1000);
     const {logger} = this.props;
     const deagg = this.deaggAndGetSql(this.props.spec);
     const vlSpec = deagg.newSpec; 
@@ -177,6 +183,8 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
           this.props.data.values = response.rows;
           this.bindData();
           this.runView();
+          console.log('LOAD END TIME: ', (new Date()).getTime()/1000);
+          console.log(this.id + ' QUERY LATENCY END TME: ', (new Date()).getTime()/1000);
         }
       );
     } catch (err) {
