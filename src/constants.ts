@@ -25,48 +25,6 @@ export const SPINNER_COLOR = '#4C78A8';
 
 export const DEFAULT_DATASETS = [
 {
-  name: 'flights1',
-  description: 'test',
-  url: 'data/flights-1.json',
-  id: 'flights-1',
-  group: 'sample'
-},
-{
-  name: 'flights2k',
-  description: 'test',
-  url: 'data/flights-2k.json',
-  id: 'flights-2k',
-  group: 'sample'
-},
-{
-  name: 'flights5k',
-  description: 'test',
-  url: 'data/flights-5k.json',
-  id: 'flights-5k',
-  group: 'sample'
-},
-{
-  name: 'flights10k',
-  description: 'test',
-  url: 'data/flights-10k.json',
-  id: 'flights-10k',
-  group: 'sample'
-},
-{
-  name: 'flights20k',
-  description: 'test',
-  url: 'data/flights-20k.json',
-  id: 'flights-20k',
-  group: 'sample'
-},
-{
-  name: 'flights230k',
-  description: 'test',
-  url: 'data/flights-230k.json',
-  id: 'flights-230k',
-  group: 'sample'
-},
-{
   name: 'Barley',
   description: 'Barley yield by variety across the upper midwest in 1931 and 1932',
   url: 'data/barley.json',
