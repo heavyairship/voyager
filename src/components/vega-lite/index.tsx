@@ -160,7 +160,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     //   }
     // };
 
-    console.log(this.id + ' QUERY LATENCY START TME: ', (new Date()).getTime()/1000);
+    //console.log(this.id + ' QUERY LATENCY START TME: ', (new Date()).getTime()/1000);
     const {logger} = this.props;
     const deagg = this.deaggAndGetSql(this.props.spec);
     const vlSpec = deagg.newSpec; 
@@ -183,14 +183,26 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
           this.props.data.values = response.rows;
           this.bindData();
           this.runView();
-          console.log('LOAD END TIME: ', (new Date()).getTime()/1000);
-          console.log(this.id + ' QUERY LATENCY END TME: ', (new Date()).getTime()/1000);
+          //console.log('LOAD END TIME: ', (new Date()).getTime()/1000);
+          //console.log(this.id + ' QUERY LATENCY END TME: ', (new Date()).getTime()/1000);
         }
       );
     } catch (err) {
       logger.error(err);
     }
   }
+
+  private isAggregateQuery(encoding: any, possibleEncodings : Array<string>) {
+    if(!encoding) {
+      return false;
+    }
+    for(const e of possibleEncodings) {
+      if(encoding.hasOwnProperty(e) && encoding[e].hasOwnProperty('aggregate')) {
+        return true;
+      }       
+    }
+    return false;
+  } 
 
   private deaggAndGetSql(spec: TopLevelSpec): any {
     // Takes in a vega-lite spec and returns a deaggregated version, along
@@ -203,23 +215,29 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     let query: string = 'SELECT ';
     let groupby: string = '';
     let newSpec: TopLevelSpec = JSON.parse(JSON.stringify(spec))
-    let encoding: Encoding<string> = spec['encoding'];
-    let isAggregateQuery: boolean = encoding &&
-      (encoding.hasOwnProperty('x') && encoding['x'].hasOwnProperty('aggregate')) ||
-      (encoding.hasOwnProperty('y') && encoding['y'].hasOwnProperty('aggregate')) 
+    const encoding: Encoding<string> = spec['encoding'];
+    console.log(encoding);
+    const possibleEncodings : Array<string> = ['x', 'y', 'row', 'size', 'color']; // FixMe: incomplete.
+    const isAggQ: boolean = this.isAggregateQuery(encoding, possibleEncodings); 
     
-    if (encoding && encoding.hasOwnProperty('x')) {
-      if (encoding['x'].hasOwnProperty('aggregate')) {
+    for(const e of possibleEncodings) {
+      if (!(encoding && encoding.hasOwnProperty(e))) {
+        continue;
+      }
+      if(query !== 'SELECT ') {
+        query += ', ';
+      }
+      if (encoding[e].hasOwnProperty('aggregate')) {
         // Deaggregate x encoding.
-        const agg = sanitizeAggregate(encoding['x']['aggregate']);
-        query += agg + '(' + encoding['x']['field'] + ')';
-        newSpec['encoding']['x']['field'] = agg;
-        newSpec['encoding']['x']['aggregate'] = '';
+        const agg = sanitizeAggregate(encoding[e]['aggregate']);
+        query += agg + '(' + encoding[e]['field'] + ')';
+        newSpec['encoding'][e]['field'] = agg;
+        newSpec['encoding'][e]['aggregate'] = '';
       } else {
         // Non-aggregate field.
-        const field = encoding['x']['field'];
+        const field = encoding[e]['field'];
         query += field;
-        if (isAggregateQuery) {
+        if (isAggQ) {
           // Non-aggregate field, so must be in group by clause if doing aggregate query.
           if (groupby === '') {
             groupby = ' GROUP BY ' + field; 
@@ -227,34 +245,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
             groupby += ', ' + field;
           }
         }
-        newSpec['encoding']['x']['field'] = field.toLowerCase();
-      }
-      
-      if (encoding.hasOwnProperty('y')) {
-        query += ', ';
-      }
-    }
-
-    if (encoding && encoding.hasOwnProperty('y')) {
-      if (encoding['y'].hasOwnProperty('aggregate')) {
-        // Deaggregate y encoding.
-        const agg = sanitizeAggregate(encoding['y']['aggregate']);
-        query += agg + '(' + encoding['y']['field'] + ')';
-        newSpec['encoding']['y']['field'] = agg;
-        newSpec['encoding']['y']['aggregate'] = '';
-      } else {
-        // Non-aggregate field.
-        const field = encoding['y']['field'];
-        query += field;
-        if (isAggregateQuery) {
-            // Non-aggregate field, so must be in group by clause if doing aggregate query.
-          if (groupby === '') {
-            groupby = ' GROUP BY ' + field; 
-          } else {
-            groupby += ', ' + field;
-          }
-        }
-        newSpec['encoding']['y']['field'] = field.toLowerCase();
+        newSpec['encoding'][e]['field'] = field.toLowerCase();
       }
     }
   
