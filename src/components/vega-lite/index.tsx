@@ -4,7 +4,6 @@ import * as vega from 'vega';
 import * as vl from 'vega-lite';
 import {TopLevelSpec} from 'vega-lite';
 import {Encoding} from 'vega-lite/build/src/encoding';
-import {PositionFieldDef} from 'vega-lite/build/src/fielddef';
 import {InlineData, isNamedData} from 'vega-lite/build/src/data';
 import * as vegaTooltip from 'vega-tooltip';
 import {SPINNER_COLOR} from '../../constants';
@@ -160,15 +159,14 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     //   }
     // };
 
-    //console.log(this.id + ' QUERY LATENCY START TME: ', (new Date()).getTime()/1000);
-    const {logger} = this.props;
+    const compileOptions = {logger: this.props.logger};
     const deagg = this.deaggAndGetSql(this.props.spec);
-    const vlSpec = deagg.newSpec; 
+    const vlSpec = deagg.newSpec;
     const query = deagg.query;
     this.props.data.values = [];
 
     try {
-      const spec = vl.compile(vlSpec, logger).spec;
+      const spec = vl.compile(vlSpec, compileOptions).spec;
       const runtime = vega.parse(spec, vlSpec.config);
       this.view = new vega.View(runtime)
         .logLevel(vega.Warn)
@@ -183,12 +181,10 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
           this.props.data.values = response.rows;
           this.bindData();
           this.runView();
-          //console.log('LOAD END TIME: ', (new Date()).getTime()/1000);
-          //console.log(this.id + ' QUERY LATENCY END TME: ', (new Date()).getTime()/1000);
         }
       );
     } catch (err) {
-      logger.error(err);
+      compileOptions.logger.error(err);
     }
   }
 
@@ -199,10 +195,10 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     for(const e of possibleEncodings) {
       if(encoding.hasOwnProperty(e) && encoding[e].hasOwnProperty('aggregate')) {
         return true;
-      }       
+      }
     }
     return false;
-  } 
+  }
 
   private deaggAndGetSql(spec: TopLevelSpec): any {
     // Takes in a vega-lite spec and returns a deaggregated version, along
@@ -216,10 +212,9 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
     let groupby: string = '';
     let newSpec: TopLevelSpec = JSON.parse(JSON.stringify(spec))
     const encoding: Encoding<string> = spec['encoding'];
-    console.log(encoding);
     const possibleEncodings : Array<string> = ['x', 'y', 'row', 'size', 'color']; // FixMe: incomplete.
-    const isAggQ: boolean = this.isAggregateQuery(encoding, possibleEncodings); 
-    
+    const isAggQ: boolean = this.isAggregateQuery(encoding, possibleEncodings);
+
     for(const e of possibleEncodings) {
       if (!(encoding && encoding.hasOwnProperty(e))) {
         continue;
@@ -240,7 +235,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         if (isAggQ) {
           // Non-aggregate field, so must be in group by clause if doing aggregate query.
           if (groupby === '') {
-            groupby = ' GROUP BY ' + field; 
+            groupby = ' GROUP BY ' + field;
           } else {
             groupby += ', ' + field;
           }
@@ -248,7 +243,7 @@ export class VegaLite extends React.PureComponent<VegaLiteProps, VegaLiteState> 
         newSpec['encoding'][e]['field'] = field.toLowerCase();
       }
     }
-  
+
     query += (' FROM ' + spec.data['name']);
     query += groupby;
     // FixMe: add filters
